@@ -2,5 +2,5 @@
 
 | Проект                         | Технологии, инструменты, библиотеки  |
 | :-------------------- | :--------------------- |
-| [Проверка качества данных. Витрина метрики RFM.](</1. Проверка качества данных. Витрина метрики RFM/README.md>) | SQL, Common Table Expression, Window Functions, PostgreSQL, cloudbeaver
+| [Проверка качества данных. Витрина метрики RFM.](</1. Проверка качества данных. Витрина метрики RFM/README.md>) | SQL (Common Table Expression, Window Functions), PostgreSQL, DBeaver, Docker
 ---
