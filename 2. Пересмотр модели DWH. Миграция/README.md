@@ -111,6 +111,16 @@ limit 10;
 
 ### 3. Справочник типов доставки.
 
+#### Описание:
+- transfer_type - тип доставки 1p означает, что компания берёт ответственность за доставку на себя, 3p — что за отправку ответственен вендор.
+- transfer_model - модель доставки, то есть способ, которым заказ доставляется до точки:
+  - car — машиной,
+  - train — поездом,
+  - ship — кораблем,
+  - airplane — самолетом,
+  - multiple — комбинированной доставкой
+- shipping_transfer_rate - процент стоимости доставки для вендора в зависимости от типа и модели доставки, который взимается интернет-магазином для покрытия расходов.
+
 ```sql
 drop table if exists public.shipping_transfer;
 create table shipping_transfer
@@ -120,8 +130,48 @@ transfer_model text not null,
 shipping_transfer_rate numeric(14,3) null,
 primary key (transfer_type_id));
 ```
+Заполним таблица информацией из столбцов shipping_transfer_description и shipping_transfer_rate.
+
+```sql
+insert into public.shipping_transfer
+(transfer_type, transfer_model, shipping_transfer_rate)
+
+select
+cast(description[1] as text) as transfer_type,
+cast(description[2] as text) as transfer_model,
+cast(shipping_transfer_rate as numeric(14,3)) shipping_transfer_rate
+from (select distinct regexp_split_to_array(shipping_transfer_description, ':+') as description, shipping_transfer_rate from public.shipping) ship;
+```
+
+Проверяем
+
+```sql
+select transfer_type_id, transfer_type, transfer_model,
+shipping_transfer_rate
+from public.shipping_transfer
+limit 10;
+```
+
+|transfer_type_id| transfer_type| transfer_model| shipping_transfer_rate|
+|----------|---------|---------|---------|
+|1	|3p	|ship	|0.025
+|2	|1p	|multiplie	|0.050
+|3	|3p	|train	|0.020
+|4	|3p	|airplane	|0.035
+|5	|1p	|ship	|0.030
+|6	|1p	|train	|0.025
+|7	|1p	|airplane	|0.040
+|8	|3p	|multiplie	|0.045
+
+Из таблицы видно, что наиболее дорогая комбинированная доставка за счет компании, а наиболее дешевая поездом силами вендора.
 
 ### 4. Таблица со справочной информацией о доставках.
+
+#### Описание:
+
+Таблица содержит id доставки, вендора, договора, вида и страны доставки, а также связанную справочную информацию и расшифровки.
+
+Добавлены внешние ключи к таблицам со странами, договорами и видами транспорта, а также первичный ключ по идентификатору доставки.
 
 ```sql
 drop table if exists public.shipping_info;
