@@ -86,7 +86,8 @@ cast(description[1] as int8) as agreementid,
 cast(description[2] as text) as agreement_rate,
 cast(description[3] as numeric(14,3)) as agreement_number,
 cast(description[4] as numeric(14,3)) as agreement_commission
-from (select distinct regexp_split_to_array(vendor_agreement_description, ':+') as description from public.shipping) ship;
+from
+(select distinct regexp_split_to_array(vendor_agreement_description, ':+') as description from public.shipping) ship;
 ```
 
 Проверяем
@@ -140,7 +141,8 @@ select
 cast(description[1] as text) as transfer_type,
 cast(description[2] as text) as transfer_model,
 cast(shipping_transfer_rate as numeric(14,3)) shipping_transfer_rate
-from (select distinct regexp_split_to_array(shipping_transfer_description, ':+') as description, shipping_transfer_rate from public.shipping) ship;
+from
+(select distinct regexp_split_to_array(shipping_transfer_description, ':+') as description, shipping_transfer_rate from public.shipping) ship;
 ```
 
 Проверяем
