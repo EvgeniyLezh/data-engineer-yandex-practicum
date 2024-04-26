@@ -142,7 +142,8 @@ cast(description[1] as text) as transfer_type,
 cast(description[2] as text) as transfer_model,
 cast(shipping_transfer_rate as numeric(14,3)) shipping_transfer_rate
 from
-(select distinct regexp_split_to_array(shipping_transfer_description, ':+') as description, shipping_transfer_rate from public.shipping) ship;
+(select distinct
+regexp_split_to_array(shipping_transfer_description, ':+') as description, shipping_transfer_rate from public.shipping) ship;
 ```
 
 Проверяем
