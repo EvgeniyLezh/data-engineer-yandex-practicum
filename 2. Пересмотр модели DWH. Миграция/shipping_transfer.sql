@@ -6,7 +6,7 @@ transfer_model text not null,
 shipping_transfer_rate numeric(14,3) null,
 primary key (transfer_type_id));
 
--- Заполним
+-- Заполняем
 
 insert into public.shipping_transfer
 (transfer_type, transfer_model, shipping_transfer_rate)

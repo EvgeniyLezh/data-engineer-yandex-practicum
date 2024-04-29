@@ -78,13 +78,26 @@ primary key (agreementid));
 Информация для заполнения находится в столбце vendor_agreement_description (таблицы shipping), где данные записаны с помощью разделителя ":", поэтому нам потребуется регулярное выражение.
 
 ```sql
+select s.vendor_agreement_description from shipping s limit 5
+```
+|vendor_agreement_description|
+|----------|
+|0:vspn-4092:0.14:0.02|
+|1:vspn-366:0.13:0.01|
+|2:vspn-4148:0.01:0.01|
+|3:vspn-3023:0.05:0.01|
+|3:vspn-3023:0.05:0.01|
+
+Перейдем к заполнению таблицы.
+
+```sql
 insert into public.shipping_agreement
 (agreementid, agreement_number, agreement_rate, agreement_commission)
 
 select
 cast(description[1] as int8) as agreementid,
-cast(description[2] as text) as agreement_rate,
-cast(description[3] as numeric(14,3)) as agreement_number,
+cast(description[2] as text) as agreement_number,
+cast(description[3] as numeric(14,3)) as agreement_rate,
 cast(description[4] as numeric(14,3)) as agreement_commission
 from
 (select distinct regexp_split_to_array(vendor_agreement_description, ':+') as description from public.shipping) ship;
@@ -95,7 +108,7 @@ from
 ```sql
 select agreementid, agreement_number, agreement_rate, agreement_commission
 from public.shipping_agreement
-limit 10;
+limit 5;
 ```
 |agreementid| agreement_rate| agreement_number| agreement_commission|
 |----------|---------|---------|---------|
@@ -104,11 +117,6 @@ limit 10;
 |19	|vspn-9037	|0.070	|0.020
 |59	|vspn-7141	|0.070	|0.010
 |51	|vspn-5162	|0.140	|0.020
-|49	|vspn-5533	|0.040	|0.030
-|38	|vspn-2557	|0.140	|0.020
-|46	|vspn-5986	|0.120	|0.030
-|16	|vspn-3829	|0.080	|0.030
-|56	|vspn-6399	|0.120	|0.010
 
 ### 3. Справочник типов доставки.
 
@@ -131,7 +139,7 @@ transfer_model text not null,
 shipping_transfer_rate numeric(14,3) null,
 primary key (transfer_type_id));
 ```
-Заполним таблица информацией из столбцов shipping_transfer_description и shipping_transfer_rate.
+Заполним таблицу информацией из столбцов shipping_transfer_description и shipping_transfer_rate.
 
 ```sql
 insert into public.shipping_transfer
@@ -152,7 +160,7 @@ regexp_split_to_array(shipping_transfer_description, ':+') as description, shipp
 select transfer_type_id, transfer_type, transfer_model,
 shipping_transfer_rate
 from public.shipping_transfer
-limit 10;
+limit 5;
 ```
 
 |transfer_type_id| transfer_type| transfer_model| shipping_transfer_rate|
@@ -162,9 +170,6 @@ limit 10;
 |3	|3p	|train	|0.020
 |4	|3p	|airplane	|0.035
 |5	|1p	|ship	|0.030
-|6	|1p	|train	|0.025
-|7	|1p	|airplane	|0.040
-|8	|3p	|multiplie	|0.045
 
 Из таблицы видно, что наиболее дорогая комбинированная доставка за счет компании, а наиболее дешевая поездом силами вендора.
 
@@ -192,7 +197,61 @@ foreign key (agreementid) references public.shipping_agreement(agreementid) on u
 foreign key (transfer_type_id) references public.shipping_transfer(transfer_type_id) on update cascade);
 ```
 
+Заполним таблицу взяв необходимые данные из уже ранее созданных shipping_country_rates, shipping_agreement, shipping_transfer используя JOIN и константную информацию из shipping.
+
+```sql
+insert into public.shipping_info
+(shippingid, vendorid, payment_amount, shipping_plan_datetime, transfer_type_id, shipping_country_id, agreementid)
+
+select distinct
+s.shippingid,
+s.vendorid,
+s.payment_amount,
+s.shipping_plan_datetime,
+st.transfer_type_id,
+cr.shipping_country_id,
+sa.agreementid
+from public.shipping s
+inner join public.shipping_transfer st on
+	cast((regexp_split_to_array(s.shipping_transfer_description, ':+'))[1] as text) = st.transfer_type and
+	cast((regexp_split_to_array(s.shipping_transfer_description, ':+'))[2] as text) = st.transfer_model and
+	cast(s.shipping_transfer_rate as numeric(14,3)) = st.shipping_transfer_rate
+inner join public.shipping_country_rates cr on
+	s.shipping_country = cr.shipping_country and s.shipping_country_base_rate = cr.shipping_country_base_rate
+inner join public.shipping_agreement sa on
+	cast((regexp_split_to_array(s.vendor_agreement_description, ':+'))[2] as text) = sa.agreement_number and
+	cast((regexp_split_to_array(s.vendor_agreement_description, ':+'))[3] as numeric(14,3)) = sa.agreement_rate and
+	cast((regexp_split_to_array(s.vendor_agreement_description, ':+'))[4] as numeric(14,3)) = sa.agreement_commission
+```
+
+Проверяем
+
+```sql
+select shippingid, vendorid, payment_amount, shipping_plan_datetime, transfer_type_id, shipping_country_id, agreementid
+from public.shipping_info
+limit 5;
+```
+
+|shippingid| vendorid| payment_amount| shipping_plan_datetime|  transfer_type_id| shipping_country_id| agreementid|
+|----------|---------|---------|---------|---------|---------|---------|
+|1	|1	|6.06	|2021-09-15 16:43:42.434	|6	|4	|0
+|2	|1	|21.93	|2021-12-12 10:49:50.468	|6	|1	|1
+|3	|1	|3.10	|2021-10-27 10:33:16.659	|7	|2	|2
+|4	|3	|8.57	|2021-09-21 10:14:30.148	|6	|3	|3
+|5	|3	|1.50	|2022-01-02 21:21:08.844	|6	|2	|3
+
 ### 5. Таблица со статусами о доставке.
+
+#### Описание:
+
+Таблица содержит информацию о статусе доставки заказа (in_progress — в процессе, finished — завершена), а также промежуточные точки (включая время начальной точки и конечной):
+- booked (пер. «заказано»);
+- fulfillment — заказ доставлен на склад отправки;
+- queued (пер. «в очереди») — заказ в очереди на запуск доставки;
+- transition (пер. «передача») — запущена доставка заказа;
+- pending (пер. «в ожидании») — заказ доставлен в пункт выдачи;
+- received (пер. «получено») — покупатель забрал заказ;
+- returned (пер. «возвращено») — покупатель возвратил заказ;
 
 ```sql
 drop table if exists public.shipping_status;
@@ -204,3 +263,186 @@ shipping_start_fact_datetime timestamp null,
 shipping_end_fact_datetime timestamp null,
 primary key (shippingid));
 ```
+
+Заполним таблицу. Для удобства можно использовать cte (с максимальной датой статуса) и коррелированным подзапросом, чтобы найти время по выбранным state = booked и state = recieved.
+
+```sql
+insert into public.shipping_status
+(shippingid, status, state, shipping_start_fact_datetime, shipping_end_fact_datetime)
+
+
+with cte_shipping as
+(select shippingid, status, state, max(state_datetime) as max_state_datetime
+from public.shipping
+group by shippingid, status, state)
+
+select distinct
+cte_s.shippingid,
+cte_s.status,
+cte_s.state,
+max(
+  case when cte_s1.state = 'booked' then cte_s1.max_state_datetime end) as shipping_start_fact_datetime,
+max(
+  case when cte_s2.state = 'recieved' then cte_s2.max_state_datetime end) as shipping_end_fact_datetime
+from cte_shipping cte_s
+left join cte_shipping cte_s1 on cte_s1.shippingid = cte_s.shippingid
+left join cte_shipping cte_s2 on cte_s2.shippingid = cte_s.shippingid
+group by cte_s.shippingid, cte_s.status, cte_s.state
+order by cte_s.shippingid;
+```
+
+Проверяем
+
+```sql
+select shippingid, "status", "state", shipping_start_fact_datetime, shipping_end_fact_datetime
+from public.shipping_status
+limit 5;
+```
+
+|shippingid| status| state| shipping_start_fact_datetime| shipping_end_fact_datetime|
+|----------|---------|---------|---------|---------|
+|1	|finished	|recieved	|2021-09-05 06:42:34.249	|2021-09-15 04:26:57.690
+|1	|in_progress	|booked	|2021-09-05 06:42:34.249	|2021-09-15 04:26:57.690
+|1	|in_progress	|fulfillment	|2021-09-05 06:42:34.249	|2021-09-15 04:26:57.690
+|1	|in_progress	|pending	|2021-09-05 06:42:34.249	|2021-09-15 04:26:57.690
+|1	|in_progress	|queued	|2021-09-05 06:42:34.249	|2021-09-15 04:26:57.690
+
+## Формируем витрину данных
+
+Требуется создать представление для аналитики на основании готовых таблиц.
+
+Описание:
+
+- shippingid;
+- vendorid;
+- transfer_type - тип доставки;
+- full_day_at_shipping — количество полных дней, в течение которых длилась доставка;
+- is_delay — статус, показывающий просрочена ли доставка;
+- is_shipping_finish — статус, показывающий, что доставка завершена;
+- delay_day_at_shipping — количество дней, на которые была просрочена доставка;
+- payment_amount — сумма платежа пользователя;
+- vat — итоговый налог на доставку;
+- profit — итоговый доход компании с доставки.
+
+```sql
+create view public.shipping_datamart as
+
+select
+si.shippingid,
+si.vendorid,
+st.transfer_type,
+date_part('day',(ss.shipping_end_fact_datetime - ss.shipping_start_fact_datetime)) as full_day_at_shipping,
+case
+  when ss.shipping_end_fact_datetime is null then null
+  when ss.shipping_end_fact_datetime > si.shipping_plan_datetime
+  then 1 else 0
+end is_delay,
+case
+	when ss.status_finish = 1 then 1 else 0
+end is_shipping_finish,
+case
+	when ss.shipping_end_fact_datetime is null then null
+	when ss.shipping_end_fact_datetime > si.shipping_plan_datetime
+	then date_part('day', (ss.shipping_end_fact_datetime - si.shipping_plan_datetime)) else 0
+end delay_day_at_shipping,
+si.payment_amount,
+(si.payment_amount * (scr.shipping_country_base_rate + st.shipping_transfer_rate + sa.agreement_rate))::numeric(14,2) as vat,
+(si.payment_amount * sa.agreement_commission)::numeric(14,2) as profit
+
+from public.shipping_info si
+
+left join public.shipping_transfer st on st.transfer_type_id = si.transfer_type_id
+left join (
+	select distinct shippingid, shipping_end_fact_datetime, shipping_start_fact_datetime,
+    max(case when status = 'finished' then 1 else 0 end)
+    over(partition by shippingid) status_finish
+	from public.shipping_status) ss on si.shippingid = ss.shippingid
+left join public.shipping_country_rates scr on scr.shipping_country_id = si.shipping_country_id
+left join public.shipping_agreement sa on sa.agreementid = si.agreementid
+```
+
+Проверяем
+
+```sql
+select shippingid, vendorid, transfer_type, full_day_at_shipping, is_delay, is_shipping_finish, delay_day_at_shipping, payment_amount, vat, profit
+from public.shipping_datamart
+limit 5
+```
+
+|shippingid| vendorid| transfer_type| full_day_at_shipping| is_delay| is_shipping_finish| delay_day_at_shipping| payment_amount| vat| profit|
+|----------|---------|---------|---------|---------|---------|---------|---------|---------|---------|
+|4341	|2	|1p	|20.0	|0	|1	|0.0	|9.65	|1.83	|0.29
+|1183	|3	|1p	|14.0	|1	|1	|7.0	|12.28	|1.41	|0.12
+|15680	|2	|3p	|7.0	|0	|1	|0.0	|4.61	|0.83	|0.14
+|16921	|3	|1p	|5.0	|0	|1	|0.0	|3.47	|0.36	|0.03
+|8367	|1	|1p	|1.0	|0	|1	|0.0	|14.59	|0.95	|0.15
+
+Проанализируем процент просрочки доставки по заказам
+
+```sql
+select
+vendorid,
+count(is_delay) as ship,
+sum(is_delay) as ship_delay,
+round(sum(is_delay)::numeric / count(is_delay)::numeric * 100, 2) as percent_delay
+from public.shipping_datamart
+where is_delay is not null
+group by vendorid
+order by percent_delay desc
+limit 10;
+```
+
+По таблице видно, что наихудший результат у vendorid = 3 - 32% задержек, такой поставщик неблагонадежен.
+
+В среднем процент возвратов составил 13%
+
+|vendorid| ship| ship_delay| percent_delay|
+|----------|---------|---------|---------|
+|3	|17675	|5637	|31.89
+|15	|9	|1	|11.11
+|21	|28	|3	|10.71
+|6	|30	|2	|6.67
+|19	|16	|1	|6.25
+|5	|35	|2	|5.71
+|7	|41	|2	|4.88
+|1	|17492	|551	|3.15
+|2	|17704	|523	|2.95
+|9	|1	|0	|0.00
+
+Проанализируем процент просрочки доставки по заказам
+
+```sql
+select
+ret.vendorid,
+ret.ship,
+ret.ship_returned,
+round(ret.ship_returned / ret.ship * 100, 2) as percent_returned from
+(select
+vendorid,
+sum(case
+			when shippingid in
+				(select distinct shippingid
+				from public.shipping_status
+				where state = 'returned')
+			then 1 else 0 end)::numeric ship_returned,
+count(shippingid)::numeric ship
+from public.shipping_datamart
+group by vendorid) ret
+order by percent_returned desc
+limit 10;
+```
+
+Худшие результат у vendorid 21, он имеет 50% возвратов, что говорит о плохом качестве товара, при этом средний процент возвратов по всем поставщикам = 1.5%
+
+|vendorid| ship| ship_returned| percent_returned|
+|----------|---------|---------|---------|
+|21	|28	|14	|50.00
+|15	|9	|1	|11.11
+|7	|41	|3	|7.32
+|1	|17850	|267	|1.50
+|3	|18046	|267	|1.48
+|2	|18055	|258	|1.43
+|5	|35	|0	|0.00
+|18	|11	|0	|0.00
+|16	|4	|0	|0.00
+|11	|4	|0	|0.00

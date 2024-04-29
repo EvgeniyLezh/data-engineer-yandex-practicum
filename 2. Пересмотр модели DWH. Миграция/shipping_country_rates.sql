@@ -7,7 +7,7 @@ shipping_country text null,
 shipping_country_base_rate numeric(14,3) null,
 primary key (shipping_country_id));
 
--- Заполним
+-- Заполняем
 
 insert into public.shipping_country_rates
 (shipping_country, shipping_country_base_rate)
