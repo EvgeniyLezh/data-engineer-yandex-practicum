@@ -5,6 +5,7 @@ transfer_type text not null,
 transfer_model text not null,
 shipping_transfer_rate numeric(14,3) null,
 primary key (transfer_type_id));
+create index shipping_transfer_i on public.shipping_transfer(transfer_type_id);
 
 -- Заполняем
 

@@ -7,6 +7,7 @@ agreement_number text not null,
 agreement_rate numeric(14,3) not null,
 agreement_commission numeric(14,3) not null,
 primary key (agreementid));
+create index shipping_agreement_i on public.shipping_agreement(agreementid);
 
 -- Заполняем
 

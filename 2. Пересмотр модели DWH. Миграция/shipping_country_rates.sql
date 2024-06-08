@@ -6,6 +6,7 @@ create table shipping_country_rates
 shipping_country text null,
 shipping_country_base_rate numeric(14,3) null,
 primary key (shipping_country_id));
+create index shipping_country_rates_i on public.shipping_country_rates(shipping_country_id);
 
 -- Заполняем
 

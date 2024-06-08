@@ -21,7 +21,7 @@
 
 Типы данных укажем на основании таблицы источника (shipping)
 
-Добавлено ограничение по PK и null значениям.
+Добавлено ограничение по PK и null значениям, а также индекс по id
 
 ```sql
 drop table if exists public.shipping_country_rates;
@@ -30,6 +30,7 @@ create table shipping_country_rates
 shipping_country text null,
 shipping_country_base_rate numeric(14,3) null,
 primary key (shipping_country_id));
+create index shipping_country_rates_i on public.shipping_country_rates(shipping_country_id);
 ```
 
 Заполним уникальными парами значений shipping_country и shipping_country_base_rate
@@ -73,6 +74,7 @@ agreement_number text not null,
 agreement_rate numeric(14,3) not null,
 agreement_commission numeric(14,3) not null,
 primary key (agreementid));
+create index shipping_agreement_i on public.shipping_agreement(agreementid);
 ```
 
 Информация для заполнения находится в столбце vendor_agreement_description (таблицы shipping), где данные записаны с помощью разделителя ":", поэтому нам потребуется регулярное выражение.
@@ -138,6 +140,7 @@ transfer_type text not null,
 transfer_model text not null,
 shipping_transfer_rate numeric(14,3) null,
 primary key (transfer_type_id));
+create index shipping_transfer_i on public.shipping_transfer(transfer_type_id);
 ```
 Заполним таблицу информацией из столбцов shipping_transfer_description и shipping_transfer_rate.
 
@@ -262,6 +265,7 @@ state text not null,
 shipping_start_fact_datetime timestamp null,
 shipping_end_fact_datetime timestamp null,
 primary key (shippingid));
+create index shipping_status_i on public.shipping_status(shippingid);
 ```
 
 Заполним таблицу. Для удобства можно использовать cte (с максимальной датой статуса) и коррелированным подзапросом, чтобы найти время по выбранным state = booked и state = recieved.

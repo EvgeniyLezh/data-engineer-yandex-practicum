@@ -7,6 +7,7 @@ status text not null,
 state text not null,
 shipping_start_fact_datetime timestamp null,
 shipping_end_fact_datetime timestamp null);
+create index shipping_status_i on public.shipping_status(shippingid);
 
 -- Заполняем
 
