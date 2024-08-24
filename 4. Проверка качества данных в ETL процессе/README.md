@@ -8,8 +8,9 @@
 
 #### Схема процесса.
 
-ссылка на dag
-ссылка на картинку схемы
+[Шаблон DAG](</Проверка качества данных в ETL процессе\dag\dag_forma.md>)
+
+![4. Проверка качества данных/Схема_DAG.png](https://github.com/EvgeniyLezh/data-engineer-yandex-practicum/blob/32d684c597f69072f5546c8ecd329f70eed60f3e/4.%20%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D0%BA%D0%B0%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%B0%20%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D1%85/%D0%A1%D1%85%D0%B5%D0%BC%D0%B0_DAG.png)
 
 #### Первый шаг — create_files_request. Подготовка файлов с данными. На этом этапе отправляется запрос на создание файлов.
 
@@ -26,7 +27,8 @@
 1. Сначала проверяем соответствие наименованию файлов (после шага get_files);
 2. Далее необходимо выявить null значения и количество строк в исходной таблице (с помощью sql после загрузки load_order_log и load_user_activity_log).
 
-ссылка на схему
+![4. Проверка качества данных/Проверки_Схема_DAG.png](https://github.com/EvgeniyLezh/data-engineer-yandex-practicum/blob/32d684c597f69072f5546c8ecd329f70eed60f3e/4.%20%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0%20%D0%BA%D0%B0%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%B0%20%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D1%85/%D0%9F%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B8_%D0%A1%D1%85%D0%B5%D0%BC%D0%B0_DAG.png)
+
 
 #### Проверить наличие файла проще всего с помощью оператора FileSencor
 
