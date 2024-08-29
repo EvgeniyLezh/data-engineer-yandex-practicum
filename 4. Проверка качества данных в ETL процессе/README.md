@@ -109,3 +109,61 @@ with DAG(
 ```
 
 #### Создадим таблицу для записи результатов проверки (лог).
+
+dq_checks_results содержит имя таблицы, наименование проверки, дата выполнения, результат выполнения.
+
+```sql
+drop table if exists dq_checks_results;
+create table dq_checks_results (
+ Table_name varchar(255),
+ DQ_check_name varchar(255),
+ Datetime timestamp,
+ DQ_check_result numeric(8,2));
+```
+
+Записывать в таблицу будем с помощью Airflow Callbacks:
+
+```python
+from airflow import DAG
+from airflow.sensors.filesystem import FileSensor
+from datetime import datetime
+from airflow.utils.task_group import TaskGroup
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.sql import (
+    SQLCheckOperator,
+    SQLValueCheckOperator,
+)
+
+
+def check_success_insert_user_order_log (context):
+    insert_dq_checks_results = PostgresOperator(
+        task_id="success_insert_user_order_log",
+        sql="""
+            INSERT INTO dq_checks_results
+            values ('user_order_log', 'user_order_log_isNull' ,current_date, 0 )
+          """)
+
+
+def check_failure_insert_user_order_log (context):
+    insert_dq_checks_results = PostgresOperator(
+        task_id="failure_insert_user_order_log",
+        sql="""
+            INSERT INTO dq_checks_results
+            values ('user_order_log', 'user_order_log_isNull' ,current_date, 1 )
+          """)
+
+
+default_args = {
+    "start_date": datetime(2020, 1, 1),
+    "owner": "airflow",
+    "conn_id": "postgres_default"}
+
+with DAG(dag_id="Sprin4_Task61", schedule_interval="@daily", default_args=default_args, catchup=False) as dag:
+
+    begin = DummyOperator(task_id="begin")
+    sql_check = SQLCheckOperator(task_id="user_order_log_isNull", sql="user_order_log_isNull_check.sql" , on_success_callback = check_success_insert_user_order_log, on_failure_callback =  check_failure_insert_user_order_log )
+
+    begin >> [sql_check]>> end
+```
+
+Остается только следить за таблицей логов, выявлять и исправлять нарушения.
